@@ -1,13 +1,24 @@
 {
   "version": 1,
   "items": [
-    { "title": "Minecraft Education", "command": "minecraft",
-      "bundleIds": ["com.microsoft.minecraft-edu"], "paths": ["/Applications/Minecraft Education.app"] },
+    {
+      "title": "Minecraft Education",
+      "command": "minecraft",
+      "bundleIds": ["com.microsoft.minecraft-edu"],
+      "paths": ["/Applications/Minecraft Education.app"]
+    },
     { "title": "Safari", "command": "safari", "bundleIds": ["com.apple.Safari"] },
-    { "title": "Google Chrome", "command": "chrome",
-      "bundleIds": ["com.google.Chrome"], "paths": ["/Applications/Google Chrome.app"] },
-    { "title": "System Settings", "command": "settings",
-      "bundleIds": ["com.apple.SystemSettings","com.apple.systempreferences"] },
+    {
+      "title": "Google Chrome",
+      "command": "chrome",
+      "bundleIds": ["com.google.Chrome"],
+      "paths": ["/Applications/Google Chrome.app"]
+    },
+    {
+      "title": "System Settings",
+      "command": "settings",
+      "bundleIds": ["com.apple.SystemSettings","com.apple.systempreferences"]
+    },
     { "title": "Finder", "command": "finder", "bundleIds": ["com.apple.finder"] }
   ]
 }
