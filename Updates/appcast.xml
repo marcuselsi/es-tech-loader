@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>ES Tech Loader Updates</title>
+    <link>https://github.com/marcuselsi/es-tech-loader/releases</link>
+    <description>Latest releases of ES Tech Loader</description>
+    <language>en</language>
+
+    <item>
+      <title>Version 1.0.0</title>
+      <sparkle:releaseNotesLink>https://github.com/marcuselsi/es-tech-loader/releases/tag/v1.0.0</sparkle:releaseNotesLink>
+      <enclosure
+        url="https://github.com/marcuselsi/es-tech-loader/releases/download/v1.0.0/ES-Tech-Loader-1.0.0.zip"
+        sparkle:version="1.0.0"
+        sparkle:shortVersionString="1.0.0"
+        sparkle:edSignature="qyl/dhUrAoKFLv7wsKAK7d7axk+ywyP61NA1z/chjvVuQo0/oNeO4nia9XHiux0Z/PXF6dLHA9JutXAyZ+ZFDQ=="
+        length="1027602"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
