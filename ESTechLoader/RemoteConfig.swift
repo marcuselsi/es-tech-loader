@@ -21,8 +21,7 @@ final class RemoteConfig {
     /// Default remote URL (change to your raw GitHub URL or any HTTPS file).
     /// Example raw GitHub URL:
     /// https://raw.githubusercontent.com/<user>/es-tech-loader/main/Config/loader-config.json
-    private let defaultRemoteURL = URL(string:
-                                        "https://raw.githubusercontent.com/marcuselsi/es-tech-loader/refs/heads/main/Config/loader-config.json?token=GHSAT0AAAAAADNLWQX4MVWQNTNGFQI5PI3G2HSKXUQ"
+    private let defaultRemoteURL = URL(string:"https://raw.githubusercontent.com/marcuselsi/es-tech-loader/main/Config/loader-config.json"
     )!
     
     /// Optional per-lab override via preferences (deployed by MDM):
