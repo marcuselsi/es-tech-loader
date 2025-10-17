@@ -22,7 +22,7 @@ final class RemoteConfig {
     /// Example raw GitHub URL:
     /// https://raw.githubusercontent.com/<user>/es-tech-loader/main/Config/loader-config.json
     private let defaultRemoteURL = URL(string:
-        "https://raw.githubusercontent.com/marcuselsi/es-tech-loader/main/Config/loader-config.json"
+        "https://raw.githubusercontent.com/marcuselsi/es-tech-loader/refs/heads/main/Config/loader-config.json?token=GHSAT0AAAAAADNLWQX4MVWQNTNGFQI5PI3G2HSKXUQ"
     )!
 
     /// Optional per-lab override via preferences (deployed by MDM):
@@ -84,17 +84,32 @@ final class RemoteConfig {
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
-            guard let data,
-                  let cfg = try? JSONDecoder().decode(LoaderConfig.self, from: data) else {
-                self.logger.error("Config decode failed (bad JSON or empty response).")
+
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? -1
+            self.logger.info("HTTP status: \(status)")
+
+            guard let data else {
+                self.logger.error("Empty response data.")
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
-            // Cache the good JSON
-            do { try data.write(to: self.cacheURL, options: .atomic) }
-            catch { self.logger.error("Cache write failed: \(error.localizedDescription, privacy: .public)") }
 
-            DispatchQueue.main.async { completion(cfg) }
+            // Peek at the first 200 chars to detect HTML/404 bodies
+            if let snippet = String(data: data, encoding: .utf8)?
+                .prefix(200) {
+                self.logger.debug("Body snippet: \(String(snippet), privacy: .public)")
+            }
+
+            do {
+                let cfg = try JSONDecoder().decode(LoaderConfig.self, from: data)
+                // Cache on success
+                try? data.write(to: self.cacheURL, options: .atomic)
+                DispatchQueue.main.async { completion(cfg) }
+            } catch {
+                self.logger.error("JSON decode error: \(error.localizedDescription, privacy: .public)")
+                DispatchQueue.main.async { completion(nil) }
+            }
         }.resume()
     }
-}
+
