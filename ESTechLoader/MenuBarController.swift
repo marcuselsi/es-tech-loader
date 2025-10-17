@@ -1,11 +1,3 @@
-//
-//  MenuBarController.swift
-//  ESTechLoader
-//
-//  Created by Marcus on 2025-10-17.
-//
-
-
 import AppKit
 import os
 
@@ -13,38 +5,79 @@ final class MenuBarController {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let logger = Logger(subsystem: "ca.elsipogtog.estechloader", category: "Menu")
 
+    private let configLoader = RemoteConfig()
+    private var currentConfig: LoaderConfig?
+
     init() {
+        // Icon / title
         if let button = statusItem.button {
-            // Use your glyph from Assets.xcassets named "DrumIcon"
             if let img = NSImage(named: "DrumIcon") {
                 img.isTemplate = true
                 button.image = img
                 button.imagePosition = .imageOnly
                 button.toolTip = "ES Tech Loader"
             } else {
-                button.title = "ES" // fallback
+                button.title = "ES"
+                button.toolTip = "ES Tech Loader"
             }
         }
 
+        // Build immediately using local/cached config (fast)
+        rebuildMenu(using: configLoader.loadPreferred())
+
+        // Then fetch latest remote config and rebuild if changed
+        configLoader.fetchLatest { [weak self] cfg in
+            guard let self, let cfg else { return }
+            if cfg.version != self.currentConfig?.version {
+                self.logger.info("Remote config version changed; rebuilding menu.")
+                self.rebuildMenu(using: cfg)
+            } else {
+                self.logger.info("Remote config same version; keeping current menu.")
+            }
+        }
+    }
+
+    // MARK: - Menu building
+
+    private func rebuildMenu(using cfg: LoaderConfig?) {
+        self.currentConfig = cfg
+
         let menu = NSMenu()
 
-        // Add your launcher items
-        menu.addItem(makeItem(title: "Minecraft Education", action: #selector(openMinecraft)))
-        menu.addItem(makeItem(title: "Safari", action: #selector(openSafari)))
-        menu.addItem(makeItem(title: "Google Chrome", action: #selector(openChrome)))
-        menu.addItem(makeItem(title: "System Settings", action: #selector(openSettings)))
-        menu.addItem(makeItem(title: "Finder", action: #selector(openFinder)))
+        if let items = cfg?.items, !items.isEmpty {
+            // Dynamic items from JSON
+            for item in items {
+                let it = NSMenuItem(title: item.title, action: #selector(dynamicOpen(_:)), keyEquivalent: "")
+                it.representedObject = item
+                it.target = self
+                menu.addItem(it)
+            }
+        } else {
+            // Fallback static menu if no config yet
+            menu.addItem(makeItem(title: "Minecraft Education", action: #selector(openMinecraft)))
+            menu.addItem(makeItem(title: "Safari", action: #selector(openSafari)))
+            menu.addItem(makeItem(title: "Google Chrome", action: #selector(openChrome)))
+            menu.addItem(makeItem(title: "System Settings", action: #selector(openSettings)))
+            menu.addItem(makeItem(title: "Finder", action: #selector(openFinder)))
+        }
 
         menu.addItem(.separator())
 
-        // Quit item
+        // Utilities
+        menu.addItem(makeItem(title: "Refresh App List", action: #selector(refreshConfig)))
+
+        // Placeholder for future Sparkle integration (safe to leave in)
+        let cfu = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        cfu.target = self
+        menu.addItem(cfu)
+
+        // Quit
         let quitItem = NSMenuItem(title: "Quit ES Tech Loader", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
         statusItem.menu = menu
-
-        logger.info("Menu created")
+        logger.info("Menu rebuilt (\(cfg?.items.count ?? 5)) items")
     }
 
     private func makeItem(title: String, action: Selector) -> NSMenuItem {
@@ -53,93 +86,34 @@ final class MenuBarController {
         return item
     }
 
-    // MARK: - Actions
+    // MARK: - Actions (static fallbacks)
     @objc private func openMinecraft() { AppLauncher.openMinecraftEducation() }
-    @objc private func openSafari() { AppLauncher.openSafari() }
-    @objc private func openChrome() { AppLauncher.openChrome() }
-    @objc private func openSettings() { AppLauncher.openSystemSettings() }
-    @objc private func openFinder() { AppLauncher.openFinder() }
+    @objc private func openSafari()    { AppLauncher.openSafari() }
+    @objc private func openChrome()    { AppLauncher.openChrome() }
+    @objc private func openSettings()  { AppLauncher.openSystemSettings() }
+    @objc private func openFinder()    { AppLauncher.openFinder() }
+
+    // MARK: - Actions (dynamic)
+    @objc private func dynamicOpen(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? LoaderItem else { return }
+        AppLauncher.openApp(bundleIds: item.bundleIds ?? [], fallbackPaths: item.paths ?? [])
+    }
+
+    @objc private func refreshConfig() {
+        logger.info("Manual refresh requested")
+        configLoader.fetchLatest { [weak self] cfg in
+            guard let self, let cfg else { return }
+            self.rebuildMenu(using: cfg)
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        // Hook Sparkle here later (SPUStandardUpdaterController)
+        // For now, just log:
+        logger.info("Check for Updates clicked (Sparkle not wired yet).")
+    }
 
     @objc private func quit() {
         NSApp.terminate(nil)
-    }
-}
-
-// MARK: - AppLauncher: central place for opening apps by bundle id or path
-
-enum AppLauncher {
-    private static let logger = Logger(subsystem: "ca.elsipogtog.estechloader", category: "Launch")
-
-    /// Tries each bundle id, then each path. Logs outcomes.
-    private static func openApp(bundleIds: [String], fallbackPaths: [String] = []) {
-        let ws = NSWorkspace.shared
-
-        // Try bundle identifiers first
-        for bid in bundleIds {
-            if let appURL = ws.urlForApplication(withBundleIdentifier: bid) {
-                logger.info("Launching via bundle id \(bid, privacy: .public) at \(appURL.path, privacy: .public)")
-                ws.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration(), completionHandler: { _,_  in })
-                return
-            } else {
-                logger.debug("Bundle id not found: \(bid, privacy: .public)")
-            }
-        }
-
-        // Try known paths next
-        for path in fallbackPaths {
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                logger.info("Launching via path \(url.path, privacy: .public)")
-                ws.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: { _,_  in })
-                return
-            } else {
-                logger.debug("Path not found: \(url.path, privacy: .public)")
-            }
-        }
-
-        logger.error("Failed to locate app via provided bundle ids and paths")
-        // Optional: show a one-off alert the first time this happens.
-    }
-
-    static func openMinecraftEducation() {
-        // Minecraft: Education Edition bundle id can vary by build/source.
-        // Common candidates; we try several. Adjust to your deployed build if needed:
-        let candidates = [
-            "com.microsoft.minecraft-edu", // newer Microsoft build
-            "com.mojang.minecrafteducation",    // alt
-            "com.mojang.minecraftEdu"           // legacy
-        ]
-        let paths = [
-            "/Applications/Minecraft Education.app",
-            "/Applications/Minecraft Education Edition.app",
-            "/Applications/minecraft education edition.app"
-        ]
-        openApp(bundleIds: candidates, fallbackPaths: paths)
-    }
-
-    static func openChrome() {
-        openApp(bundleIds: ["com.google.Chrome"], fallbackPaths: ["/Applications/Google Chrome.app"])
-    }
-
-    static func openSafari() {
-        openApp(bundleIds: ["com.apple.Safari"])
-    }
-
-    static func openSystemSettings() {
-        // Monterey uses System Preferences, Ventura+ uses System Settings (different bundle IDs)
-        // Try Ventura+ first, then Monterey:
-        openApp(bundleIds: ["com.apple.SystemSettings", "com.apple.systempreferences"])
-    }
-
-    static func openFinder() {
-        // Finder can be opened by bundle id or simply by opening the home folder.
-        let ws = NSWorkspace.shared
-        if let url = ws.urlForApplication(withBundleIdentifier: "com.apple.finder") {
-            logger.info("Opening Finder via bundle id")
-            ws.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: { _,_  in })
-        } else {
-            logger.info("Opening Finder by revealing the home directory")
-            NSWorkspace.shared.open(FileManager.default.homeDirectoryForCurrentUser)
-        }
     }
 }

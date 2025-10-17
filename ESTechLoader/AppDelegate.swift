@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         logger.info("ES Tech Loader launched")
+        // Create menu bar controller (builds initial menu)
         menuBarController = MenuBarController()
     }
 
@@ -18,32 +19,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handle(url: URL) {
-        // Accept formats like ESTech://chrome or ESTech://open?target=chrome
-        // 'host' is often the first component after scheme; path may also carry data.
-        let scheme = url.scheme ?? ""
-        let host = url.host?.lowercased() ?? ""
-        let pathComponent = url.pathComponents.dropFirst().first?.lowercased() // skip leading '/'
-
-        logger.info("Received URL: \(url.absoluteString, privacy: .public) (scheme: \(scheme), host: \(host), path: \(pathComponent ?? "nil"))")
-
-        // Command resolution priority: host > first path component > query item "target"
-        let command: String? = {
-            if !host.isEmpty { return host }
-            if let p = pathComponent, !p.isEmpty { return p }
-            if let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?.first(where: { $0.name.lowercased() == "target" })?.value?.lowercased() {
-                return q
-            }
-            return nil
-        }()
-
-        guard let cmd = command else {
-            logger.error("No command found in URL")
+        // Accept ESTech://chrome, ESTech://minecraft, ESTech://open?target=chrome, etc.
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard scheme == "estech" else {
+            Logger(subsystem: "ca.elsipogtog.estechloader", category: "App")
+                .error("Unexpected scheme: \(scheme, privacy: .public)")
             return
         }
 
-        switch cmd {
-        case "minecraft-edu":
+        let host = url.host?.lowercased() ?? ""
+        let firstPath = url.pathComponents.dropFirst().first?.lowercased()
+        let queryTarget = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name.lowercased() == "target" })?.value?.lowercased()
+
+        let command = [host, firstPath, queryTarget].compactMap { $0 }.first ?? ""
+        Logger(subsystem: "ca.elsipogtog.estechloader", category: "App")
+            .info("Received URL: \(url.absoluteString, privacy: .public) → command=\(command, privacy: .public)")
+
+        // Route commands to the same launcher used by menu items
+        switch command {
+        case "minecraft":
             AppLauncher.openMinecraftEducation()
         case "chrome":
             AppLauncher.openChrome()
@@ -54,7 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "finder":
             AppLauncher.openFinder()
         default:
-            logger.error("Unknown command: \(cmd, privacy: .public)")
+            Logger(subsystem: "ca.elsipogtog.estechloader", category: "App")
+                .error("Unknown command from URL: \(command, privacy: .public)")
         }
     }
 }

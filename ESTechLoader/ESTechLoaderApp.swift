@@ -2,13 +2,12 @@ import SwiftUI
 
 @main
 struct ESTechLoaderApp: App {
-    // Use AppDelegate for URL handling + lifecycle bits
+    // AppDelegate handles lifecycle & custom URL scheme
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // No visible windows. The app is menu-bar only via LSUIElement.
+        // No windows; background-only via LSUIElement in Info.plist
         Settings {
-            // If you ever want a Settings window, put a SwiftUI view here.
             EmptyView()
         }
     }
